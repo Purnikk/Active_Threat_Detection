@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Threat Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-form {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .result-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Threat Detection System</h1>
+    
+    <div class="upload-form">
+        <h2>Upload CSV File</h2>
+        <form action="/predict" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".csv" required>
+            <br><br>
+            <button type="submit">Process File</button>
+        </form>
+    </div>
+
+    {% if results %}
+    <div class="results">
+        <h2>Results</h2>
+        <p>Total Records: {{ summary.total_records }}</p>
+        <p>Safe Records: {{ summary.safe_count }}</p>
+        <p>Threats Detected: {{ summary.threat_count }}</p>
+        <p>Accuracy: {{ summary.accuracy }}</p>
+
+        <h3>Detailed Results:</h3>
+        {% for result in results %}
+        <div class="result-item">
+            <p><strong>Record {{ result.index }}</strong></p>
+            <p>Prediction: {{ result.prediction_text }}</p>
+            <p>Confidence: {{ "%.2f"|format(result.confidence * 100) }}%</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html> 

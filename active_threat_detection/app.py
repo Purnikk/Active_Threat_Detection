@@ -19,10 +19,6 @@ def load_and_preprocess_data(file):
         # Read the CSV file
         df = pd.read_csv(file)
         
-        # If 'target' column doesn't exist, assume it's the last column
-        if 'target' not in df.columns:
-            df.columns = list(df.columns[:-1]) + ['target']
-            
         # Convert all columns to numeric, replacing errors with 0
         for col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
@@ -60,28 +56,28 @@ def train_model(data):
 
 def predict(model, data):
     try:
-        # Remove target and timestamp if they exist
-        features = data.drop(['target'], axis=1, errors='ignore')
-
         # Make predictions
-        predictions = model.predict(features)
-        probabilities = model.predict_proba(features)
+        predictions = model.predict(data)
+        probabilities = model.predict_proba(data)
         
         # Get total counts
         total_records = len(predictions)
         threat_count = sum(predictions)
         safe_count = total_records - threat_count
         
+        # Calculate accuracy based on safe records percentage
+        accuracy = (safe_count / total_records) * 100
+        
         # Prepare results
         results = []
         for idx, (pred, prob) in enumerate(zip(predictions, probabilities)):
             result = {
-                'index': idx + 1,  # Start from 1 instead of using original index
+                'index': idx + 1,
                 'prediction': int(pred),
                 'prediction_text': 'Potential Threat' if pred == 1 else 'Safe',
                 'confidence': float(prob[int(pred)]),
                 'features': {
-                    name: f"{value:.4f}" for name, value in features.iloc[idx].items()
+                    name: f"{value:.4f}" for name, value in data.iloc[idx].items()
                 }
             }
             results.append(result)
@@ -91,7 +87,7 @@ def predict(model, data):
             'total_records': total_records,
             'threat_count': int(threat_count),
             'safe_count': int(safe_count),
-            'threat_percentage': f"{(threat_count/total_records)*100:.1f}%"
+            'dataset_accuracy': f"{accuracy:.1f}%"
         }
         
         return results, summary
@@ -115,24 +111,24 @@ def predict_route():
     
     if not file.filename.endswith('.csv'):
         flash('Please upload a CSV file', 'error')
-    return redirect(url_for('index'))
+        return redirect(url_for('index'))
 
     try:
         # Load and preprocess the data
         data = load_and_preprocess_data(file)
         
-        # Load or train the model
-        if os.path.exists(MODEL_PATH):
-            model = joblib.load(MODEL_PATH)
-        else:
-            flash('Training new model...', 'info')
-            model = train_model(data)
+        # Load the model
+        if not os.path.exists(MODEL_PATH):
+            flash('Model not found. Please train the model first.', 'error')
+            return redirect(url_for('index'))
+            
+        model = joblib.load(MODEL_PATH)
         
         # Make predictions
         results, summary = predict(model, data)
         
         # Flash summary message
-        flash(f"Analysis complete: {summary['threat_count']} threats detected out of {summary['total_records']} records ({summary['threat_percentage']} threat rate)", 'info')
+        flash(f"Analysis complete: {summary['safe_count']} safe records and {summary['threat_count']} threats detected. Dataset Accuracy: {summary['dataset_accuracy']}", 'info')
         
         return render_template('index.html', results=results, summary=summary, filename=file.filename)
     
@@ -141,4 +137,4 @@ def predict_route():
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run(host='127.0.0.1', port=3000, debug=True)
